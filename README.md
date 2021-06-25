@@ -1,4 +1,4 @@
-# VoxelCraft
+# VoxelCraft - 2021
 Created a simple Minecraft clone to explain how voxels work in games.
 
 This project uses Unity to break down how Minecraft works.  There are 10 scenes, starting with how a square is rendered out of triangles, 
