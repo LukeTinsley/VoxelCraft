@@ -37,27 +37,55 @@ public class World : MonoBehaviour
                 for (int y = 0; y < columnHeight; y++)
                 {
                     Vector3 chunkPosition = new Vector3((x + posx) * chunkSize, y * chunkSize, (posz + z) * chunkSize);
-                    Chunk chunk = new Chunk(chunkPosition, textureAtlas);
+                    Chunk chunk;
+                    string chunkName = BuildChunkName(chunkPosition);
+
+                    if (worldChunksDictionary.TryGetValue(chunkName, out chunk))
+                    {
+                        chunk.chunkStatus = ChunkStatus.KEEP;
+                        break;
+                    }
+
+
+                    chunk = new Chunk(chunkPosition, textureAtlas);
                     chunk.chunkObject.transform.parent = this.transform;
                     worldChunksDictionary.Add(chunk.chunkObject.name, chunk);
 
-                    processCount++;
-                    loadingAmount.value = processCount / totalChunks * 100;
+                    if (firstBuild)
+                    {
+                        processCount++;
+                        loadingAmount.value = processCount / totalChunks * 100;
+                    }
                     yield return null;
                 }
 
         foreach (KeyValuePair<string, Chunk> chunk in worldChunksDictionary)
         {
-            chunk.Value.DrawChunk();
-            processCount++;
-            loadingAmount.value = processCount / totalChunks * 100;
+            if (chunk.Value.chunkStatus == ChunkStatus.DRAW)
+            {
+                chunk.Value.DrawChunk();
+                chunk.Value.chunkStatus = ChunkStatus.KEEP;
+            }
+
+            // Delete old chunks here
+            chunk.Value.chunkStatus = ChunkStatus.DONE;
+            if (firstBuild)
+            {
+                processCount++;
+                loadingAmount.value = processCount / totalChunks * 100;
+            }
             yield return null;
         }
 
-        player.SetActive(true);
-        loadingAmount.gameObject.SetActive(false);
-        cam.gameObject.SetActive(false);
-        playButton.gameObject.SetActive(false);
+        if (firstBuild)
+        {
+            player.SetActive(true);
+            loadingAmount.gameObject.SetActive(false);
+            cam.gameObject.SetActive(false);
+            playButton.gameObject.SetActive(false);
+            firstBuild = false;
+        }
+        building = false;
     }
 
     public void StartBuild()
@@ -72,5 +100,12 @@ public class World : MonoBehaviour
         worldChunksDictionary = new Dictionary<string, Chunk>();
         this.transform.position = Vector3.zero;
         this.transform.rotation = Quaternion.identity;
+    }
+
+    // Update is called once per frame
+    void Update()
+    {
+        if (!building && !firstBuild)
+            StartCoroutine(BuildWorld());
     }
 }
