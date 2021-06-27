@@ -1,63 +1,76 @@
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.UI;
 
 public class World : MonoBehaviour
 {
+    public GameObject player;
     public Material textureAtlas;
     public static int columnHeight = 16;
     public static int chunkSize = 16;
-    public static int worldSize = 2;
-    public static Dictionary<string, Chunk> chunks;
+    public static int worldSize = 16;
+    public static int radius = 2;
+    public static Dictionary<string, Chunk> worldChunksDictionary;
+    public Slider loadingAmount;
+    public Camera cam;
+    public Button playButton;
+    bool firstBuild = true;
+    bool building = false;
 
-    public static string BuildChunkName(Vector3 v)
+    public static string BuildChunkName(Vector3 vector3)
     {
-        return (int)v.x + "_" + (int)v.y + "_" + (int)v.z;
-    }
-
-    IEnumerator BuildChunkColumn()
-    {
-        for (int i = 0; i < columnHeight; i++)
-        {
-            Vector3 chunkPosition = new Vector3(this.transform.position.x, i * chunkSize, this.transform.position.z);
-            Chunk chunk = new Chunk(chunkPosition, textureAtlas);
-            chunk.chunk.transform.parent = this.transform;
-            chunks.Add(chunk.chunk.name, chunk);
-        }
-
-        foreach (KeyValuePair<string, Chunk> chunk in chunks)
-        {
-            chunk.Value.DrawChunk();
-            yield return null;
-        }
+        return (int)vector3.x + "_" + (int)vector3.y + "_" + (int)vector3.z;
     }
 
     IEnumerator BuildWorld()
     {
-        for (int z = 0; z < worldSize; z++)
-            for (int x = 0; x < worldSize; x++)
+        building = true;
+        int posx = (int)Mathf.Floor(player.transform.position.x / chunkSize);
+        int posz = (int)Mathf.Floor(player.transform.position.z / chunkSize);
+
+        float totalChunks = (Mathf.Pow(radius * 2 + 1, 2) * columnHeight) * 2;
+        int processCount = 0;
+
+        for (int z = -radius; z <= radius; z++)
+            for (int x = -radius; x <= radius; x++)
                 for (int y = 0; y < columnHeight; y++)
                 {
-                    Vector3 chunkPosition = new Vector3(x * chunkSize, y * chunkSize, z * chunkSize);
-                    Chunk c = new Chunk(chunkPosition, textureAtlas);
-                    c.chunk.transform.parent = this.transform;
-                    chunks.Add(c.chunk.name, c);
+                    Vector3 chunkPosition = new Vector3((x + posx) * chunkSize, y * chunkSize, (posz + z) * chunkSize);
+                    Chunk chunk = new Chunk(chunkPosition, textureAtlas);
+                    chunk.chunkObject.transform.parent = this.transform;
+                    worldChunksDictionary.Add(chunk.chunkObject.name, chunk);
+
+                    processCount++;
+                    loadingAmount.value = processCount / totalChunks * 100;
+                    yield return null;
                 }
 
-        foreach (KeyValuePair<string, Chunk> chunk in chunks)
+        foreach (KeyValuePair<string, Chunk> chunk in worldChunksDictionary)
         {
             chunk.Value.DrawChunk();
+            processCount++;
+            loadingAmount.value = processCount / totalChunks * 100;
             yield return null;
         }
 
+        player.SetActive(true);
+        loadingAmount.gameObject.SetActive(false);
+        cam.gameObject.SetActive(false);
+        playButton.gameObject.SetActive(false);
+    }
+
+    public void StartBuild()
+    {
+        StartCoroutine(BuildWorld());
     }
 
     // Start is called before the first frame update
     void Start()
     {
-        chunks = new Dictionary<string, Chunk>();
+        player.SetActive(false);
+        worldChunksDictionary = new Dictionary<string, Chunk>();
         this.transform.position = Vector3.zero;
         this.transform.rotation = Quaternion.identity;
-        StartCoroutine(BuildWorld());
     }
 }

@@ -22,7 +22,7 @@ public class ChunkV1 : MonoBehaviour
     // Start is called before the first frame update
     void Start()
     {
-        StartCoroutine(BuildChunk(5, 5, 5));
+        StartCoroutine(BuildChunk(20, 20, 20));
     }
 
     void CombineSquaresToCube()

@@ -2,13 +2,10 @@ using UnityEngine;
 
 public class Block
 {
-    enum Cubeside { BOTTOM, TOP, LEFT, RIGHT, FRONT, BACK };
-    public enum BlockType { GRASS, DIRT, STONE, BEDROCK, REDSTONE, DIAMOND, AIR };
-
     BlockType blockType;
-    GameObject parent;
+    GameObject blockObject;
     Vector3 position;
-    Chunk owner;
+    Chunk parentChunk;
     public bool isSolid;
 
     Vector2[,] blockUVs = { 
@@ -21,19 +18,19 @@ public class Block
         /*DIAMOND*/	    {new Vector2( 0.125f, 0.75f ), new Vector2( 0.1875f, 0.75f), new Vector2( 0.125f, 0.8125f ),new Vector2( 0.1875f, 0.8125f )}
     };
 
-    public Block(BlockType b, Vector3 pos, GameObject p, Chunk chunk)
+    public Block(BlockType type, Vector3 pos, GameObject parent, Chunk chunk)
     {
-        blockType = b;
-        owner = chunk;
-        parent = p;
+        blockType = type;
         position = pos;
+        blockObject = parent;
+        parentChunk = chunk;
         if (blockType == BlockType.AIR)
             isSolid = false;
         else
             isSolid = true;
     }
 
-    void BuildSquare(Cubeside side)
+    void BuildSquare(CubeSide side)
     {
         Mesh mesh = new Mesh();
         mesh.name = "ScriptedMesh" + side.ToString();
@@ -48,14 +45,14 @@ public class Block
 
         Vector2 uv00, uv10, uv01, uv11;
 
-        if (blockType == BlockType.GRASS && side == Cubeside.TOP)
+        if (blockType == BlockType.GRASS && side == CubeSide.TOP)
         {
             uv00 = blockUVs[0, 0];
             uv10 = blockUVs[0, 1];
             uv01 = blockUVs[0, 2];
             uv11 = blockUVs[0, 3];
         }
-        else if (blockType == BlockType.GRASS && side == Cubeside.BOTTOM)
+        else if (blockType == BlockType.GRASS && side == CubeSide.BOTTOM)
         {
             uv00 = blockUVs[(int)(BlockType.DIRT + 1), 0];
             uv10 = blockUVs[(int)(BlockType.DIRT + 1), 1];
@@ -82,37 +79,37 @@ public class Block
 
         switch (side)
         {
-            case Cubeside.BOTTOM:
+            case CubeSide.BOTTOM:
                 vertices = new Vector3[] { p0, p1, p2, p3 };
                 normals = new Vector3[] { Vector3.down, Vector3.down, Vector3.down, Vector3.down };
                 unitVectors = new Vector2[] { uv11, uv01, uv00, uv10 };
                 triangles = new int[] { 3, 1, 0, 3, 2, 1 };
                 break;
-            case Cubeside.TOP:
+            case CubeSide.TOP:
                 vertices = new Vector3[] { p7, p6, p5, p4 };
                 normals = new Vector3[] { Vector3.up, Vector3.up, Vector3.up, Vector3.up };
                 unitVectors = new Vector2[] { uv11, uv01, uv00, uv10 };
                 triangles = new int[] { 3, 1, 0, 3, 2, 1 };
                 break;
-            case Cubeside.LEFT:
+            case CubeSide.LEFT:
                 vertices = new Vector3[] { p7, p4, p0, p3 };
                 normals = new Vector3[] { Vector3.left, Vector3.left, Vector3.left, Vector3.left };
                 unitVectors = new Vector2[] { uv11, uv01, uv00, uv10 };
                 triangles = new int[] { 3, 1, 0, 3, 2, 1 };
                 break;
-            case Cubeside.RIGHT:
+            case CubeSide.RIGHT:
                 vertices = new Vector3[] { p5, p6, p2, p1 };
                 normals = new Vector3[] { Vector3.right, Vector3.right, Vector3.right, Vector3.right };
                 unitVectors = new Vector2[] { uv11, uv01, uv00, uv10 };
                 triangles = new int[] { 3, 1, 0, 3, 2, 1 };
                 break;
-            case Cubeside.FRONT:
+            case CubeSide.FRONT:
                 vertices = new Vector3[] { p4, p5, p1, p0 };
                 normals = new Vector3[] { Vector3.forward, Vector3.forward, Vector3.forward, Vector3.forward };
                 unitVectors = new Vector2[] { uv11, uv01, uv00, uv10 };
                 triangles = new int[] { 3, 1, 0, 3, 2, 1 };
                 break;
-            case Cubeside.BACK:
+            case CubeSide.BACK:
                 vertices = new Vector3[] { p6, p7, p3, p2 };
                 normals = new Vector3[] { Vector3.back, Vector3.back, Vector3.back, Vector3.back };
                 unitVectors = new Vector2[] { uv11, uv01, uv00, uv10 };
@@ -130,7 +127,7 @@ public class Block
         // Create the square
         GameObject square = new GameObject("Square");
         square.transform.position = position;
-        square.transform.parent = parent.transform;
+        square.transform.parent = blockObject.transform;
 
         MeshFilter meshFilter = (MeshFilter)square.AddComponent(typeof(MeshFilter));
         meshFilter.mesh = mesh;
@@ -145,39 +142,37 @@ public class Block
         return i;
     }
 
-    public bool HasSolidNeighbour(int x, int y, int z)
+    public bool HasSolidNeighbor(int x, int y, int z)
     {
-        Block[,,] chunks;
+        Block[,,] chunkData;
 
-        if (x < 0 || x >= World.chunkSize ||
-            y < 0 || y >= World.chunkSize ||
-            z < 0 || z >= World.chunkSize)
-        {  //block in a neighbouring chunk
-
-            Vector3 neighbourChunkPos = this.parent.transform.position +
+        // Block in a neighboring chunk
+        if (x < 0 || x >= World.chunkSize || y < 0 || y >= World.chunkSize || z < 0 || z >= World.chunkSize)
+        {
+            Vector3 neighbourChunkPos = this.blockObject.transform.position +
                                         new Vector3((x - (int)position.x) * World.chunkSize,
                                             (y - (int)position.y) * World.chunkSize,
                                             (z - (int)position.z) * World.chunkSize);
-            string nName = World.BuildChunkName(neighbourChunkPos);
+            string chunkName = World.BuildChunkName(neighbourChunkPos);
 
             x = ConvertBlockIndexToLocal(x);
             y = ConvertBlockIndexToLocal(y);
             z = ConvertBlockIndexToLocal(z);
 
-            Chunk nChunk;
-            if (World.chunks.TryGetValue(nName, out nChunk))
+            Chunk chunk;
+            if (World.worldChunksDictionary.TryGetValue(chunkName, out chunk))
             {
-                chunks = nChunk.chunkData;
+                chunkData = chunk.chunkData;
             }
             else
                 return false;
         }  //block in this chunk
         else
-            chunks = owner.chunkData;
+            chunkData = parentChunk.chunkData;
 
         try
         {
-            return chunks[x, y, z].isSolid;
+            return chunkData[x, y, z].isSolid;
         }
         catch (System.IndexOutOfRangeException) { }
         return false;
@@ -185,19 +180,20 @@ public class Block
 
     public void Draw()
     {
-        if (blockType == BlockType.AIR) return;
+        if (blockType == BlockType.AIR)
+            return;
 
-        if (!HasSolidNeighbour((int)position.x, (int)position.y, (int)position.z + 1))
-            BuildSquare(Cubeside.FRONT);
-        if (!HasSolidNeighbour((int)position.x, (int)position.y, (int)position.z - 1))
-            BuildSquare(Cubeside.BACK);
-        if (!HasSolidNeighbour((int)position.x, (int)position.y + 1, (int)position.z))
-            BuildSquare(Cubeside.TOP);
-        if (!HasSolidNeighbour((int)position.x, (int)position.y - 1, (int)position.z))
-            BuildSquare(Cubeside.BOTTOM);
-        if (!HasSolidNeighbour((int)position.x - 1, (int)position.y, (int)position.z))
-            BuildSquare(Cubeside.LEFT);
-        if (!HasSolidNeighbour((int)position.x + 1, (int)position.y, (int)position.z))
-            BuildSquare(Cubeside.RIGHT);
+        if (!HasSolidNeighbor((int)position.x, (int)position.y, (int)position.z + 1))
+            BuildSquare(CubeSide.FRONT);
+        if (!HasSolidNeighbor((int)position.x, (int)position.y, (int)position.z - 1))
+            BuildSquare(CubeSide.BACK);
+        if (!HasSolidNeighbor((int)position.x, (int)position.y + 1, (int)position.z))
+            BuildSquare(CubeSide.TOP);
+        if (!HasSolidNeighbor((int)position.x, (int)position.y - 1, (int)position.z))
+            BuildSquare(CubeSide.BOTTOM);
+        if (!HasSolidNeighbor((int)position.x - 1, (int)position.y, (int)position.z))
+            BuildSquare(CubeSide.LEFT);
+        if (!HasSolidNeighbor((int)position.x + 1, (int)position.y, (int)position.z))
+            BuildSquare(CubeSide.RIGHT);
     }
 }
