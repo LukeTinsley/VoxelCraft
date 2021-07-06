@@ -27,7 +27,7 @@ public class Chunk
                         chunkData[x, y, z] = new Block(BlockType.BEDROCK, position, chunkObject.gameObject, this);
                     else if (worldY <= Utils.GenerateStoneHeight(worldX, worldZ))
                     {
-                        if (Utils.fBM3D(worldX, worldY, worldZ, 0.01f, 2) < 0.4f && worldY < 30)
+                        if (Utils.fBM3D(worldX, worldY, worldZ, 0.01f, 2) < 0.38f && worldY < 30)
                             chunkData[x, y, z] = new Block(BlockType.DIAMOND, position, chunkObject.gameObject, this);
                         else if (Utils.fBM3D(worldX, worldY, worldZ, 0.03f, 3) < 0.41f && worldY < 15)
                             chunkData[x, y, z] = new Block(BlockType.REDSTONE, position, chunkObject.gameObject, this);
